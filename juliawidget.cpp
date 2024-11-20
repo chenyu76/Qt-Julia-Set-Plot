@@ -14,9 +14,7 @@
 
 JuliaWidget::JuliaWidget(QWidget* parent)
     : QWidget(parent), width(800), height(600), maxIterations(1000) {
-    //setFixedSize(width, height);
     resize(400, 600);
-    //scrollArea->setFocusPolicy(Qt::StrongFocus);
     setupUI();
 }
 
@@ -62,42 +60,6 @@ void JuliaWidget::setupUI() {
     // 图像设置输入
     QGroupBox* figCfgInputGroup = new QGroupBox("图像设置");
     QVBoxLayout* figCfgInputGroupLayout = new QVBoxLayout;
-
-    /*
-    QHBoxLayout* HSV1InputLayout = new QHBoxLayout;
-
-    QLabel* HSV1Label = new QLabel("最小HSV设置（0~255）");
-    HSV1InputLayout->addWidget(HSV1Label);
-    HSVInput11 = new QLineEdit("0");
-    HSVInput11->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    HSV1InputLayout->addWidget(HSVInput11);
-
-    HSVInput12 = new QLineEdit("0");
-    HSVInput12->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    HSV1InputLayout->addWidget(HSVInput12);
-
-    HSVInput13 = new QLineEdit("255");
-    HSVInput13->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    HSV1InputLayout->addWidget(HSVInput13);
-
-    figCfgInputGroupLayout->addLayout(HSV1InputLayout);
-
-    QHBoxLayout* HSV2InputLayout = new QHBoxLayout;
-    QLabel* HSV2Label = new QLabel("最大HSV设置（0~255）");
-    HSV2InputLayout->addWidget(HSV2Label);
-    HSVInput21 = new QLineEdit("0");
-    HSVInput21->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    HSV2InputLayout->addWidget(HSVInput21);
-
-    HSVInput22 = new QLineEdit("0");
-    HSVInput22->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    HSV2InputLayout->addWidget(HSVInput22);
-
-    HSVInput23 = new QLineEdit("0");
-    HSVInput23->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    HSV2InputLayout->addWidget(HSVInput23);
-    figCfgInputGroupLayout->addLayout(HSV2InputLayout);
-*/
 
     // 创建下拉框并添加选项
     colorMapComboBox = new QComboBox(this);

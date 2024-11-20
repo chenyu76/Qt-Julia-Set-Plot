@@ -83,14 +83,6 @@ private:
     double realCenter = 0;
     double imagCenter = 0;
     double range = 3;
-    /*
-    QLineEdit* HSVInput11;
-    QLineEdit* HSVInput12;
-    QLineEdit* HSVInput13;
-    QLineEdit* HSVInput21;
-    QLineEdit* HSVInput22;
-    QLineEdit* HSVInput23;
-    */
 
     QComboBox *colorMapComboBox;
 

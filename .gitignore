@@ -27,6 +27,7 @@ Makefile*
 *.prl
 *.app
 moc_*.cpp
+moc_*.h
 ui_*.h
 qrc_*.cpp
 Thumbs.db
@@ -60,6 +61,9 @@ CMakeLists.txt.user*
 *.vcxproj
 *vcxproj.*
 
+# vscode
+.vscode
+
 # MinGW generated files
 *.Debug
 *.Release
@@ -71,4 +75,9 @@ CMakeLists.txt.user*
 # --------
 *.dll
 *.exe
+# linux executable
+JuliaSet
 
+# program generated file
+colormaps.png
+julia_*.png
