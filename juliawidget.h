@@ -54,9 +54,10 @@ private:
     int maxIterations = -1;
     int resolution = -1;
 
-    double real = -2; // c real
-    double imag = -2; // c imag
-    double order = -2;// z^order
+    //double real = -2; // c real
+    //double imag = -2; // c imag
+    //double order = -2;// z^order
+    std::string func_str = "x^2+(-0.7+0.27015i)";
 
     std::vector<std::vector<int>> JuliaMatrix;
 
@@ -71,6 +72,7 @@ private:
     QPoint dragStartPosition; // 拖拽起始位置
     bool isDragging = false;  // 是否正在拖拽
 
+    QLineEdit* funcInput;
     QLineEdit* orderInput;
     QLineEdit* realInput;
     QLineEdit* imagInput;

@@ -3,6 +3,7 @@
 #include <QVBoxLayout>
 #include <QScrollArea>
 #include <QPushButton>
+#include <QMessageBox>
 #include <QPixmap>
 #include <sstream>
 #include <QResizeEvent>
@@ -13,8 +14,8 @@
 #include <QFile>
 
 JuliaWidget::JuliaWidget(QWidget* parent)
-    : QWidget(parent), width(800), height(600), maxIterations(1000) {
-    resize(400, 600);
+    : QWidget(parent), width(400), height(800), maxIterations(1000) {
+    resize(400, 800);
     setupUI();
 }
 
@@ -23,34 +24,17 @@ void JuliaWidget::setupUI() {
     QVBoxLayout* mainLayout = new QVBoxLayout;
 
     // 输入 C 组
-    QGroupBox* cInputGroup = new QGroupBox("输入方程参数");
+    QGroupBox* cInputGroup = new QGroupBox("输入方程");
 
     QHBoxLayout* complexInputLayout = new QHBoxLayout;
 
 
-    QLabel* cLabel = new QLabel("f(z) = z^");
+    QLabel* cLabel = new QLabel("f(z) =");
     complexInputLayout->addWidget(cLabel);
 
-    orderInput = new QLineEdit("2");
-    orderInput->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    complexInputLayout->addWidget(orderInput);
-
-    QLabel* plusLabel1 = new QLabel(" + (");
-    complexInputLayout->addWidget(plusLabel1);
-
-    realInput = new QLineEdit("-0.7");
-    realInput->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    complexInputLayout->addWidget(realInput);
-
-    QLabel* plusLabel = new QLabel(" + ");
-    complexInputLayout->addWidget(plusLabel);
-
-    imagInput = new QLineEdit("0.27015");
-    imagInput->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    complexInputLayout->addWidget(imagInput);
-
-    QLabel* iLabel = new QLabel("i) ");
-    complexInputLayout->addWidget(iLabel);
+    funcInput = new QLineEdit(func_str.c_str());
+    funcInput->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    complexInputLayout->addWidget(funcInput);
 
     cInputGroup->setLayout(complexInputLayout);
     cInputGroup->setMaximumWidth(500);
@@ -83,7 +67,7 @@ void JuliaWidget::setupUI() {
     // 分辨率设置
     QHBoxLayout* resolutionInputLayout = new QHBoxLayout;
     resolutionInputLayout->addWidget(new QLabel("图像分辨率(px):"));
-    resolutionInput = new QLineEdit("1080");
+    resolutionInput = new QLineEdit("540");
     resolutionInputLayout->addWidget(resolutionInput);
     figCfgInputGroupLayout->addLayout(resolutionInputLayout);
 
@@ -126,18 +110,17 @@ void JuliaWidget::setupUI() {
     mainLayout->addWidget(generateButton);
 
     // 显示图像名称
-    displayLabel = new QLabel("点击上面按钮生成图像，图像需要一段时间生成，程序可能会无响应，请耐心等待。\n提示：光标不在输入框内时，你可以通过H/J/K/L移动图像范围，-/= 缩放图像；此外，Ctrl+S保存图像，Ctrl+D生成图像（但不保存）");//下图为各个颜色映射对应色卡");
+    displayLabel = new QLabel(
+        "点击上面按钮生成图像，图像需要一段时间生成，程序可能会无响应，请耐心等待。\n"
+        "注意：请保证输入的只包含完全展开的多项式，本程序无法处理其它复杂格式。\n"
+        "提示：光标不在输入框内时，你可以通过H/J/K/L移动图像范围，-/= 缩放图像；\n"
+        "Ctrl+S保存图像，Ctrl+D生成图像（但不保存）；\n"
+        "下图为不同颜色映射函数的样式参考。");
     displayLabel->setWordWrap(true);
 
     mainLayout->addWidget(displayLabel);
 
-    // 显示图像，默认显示colormap
-    //if(QFile::exists("colormaps.png")){
-    //    originalPixmap = QPixmap("colormaps.png");
-    //    imageLabel->setPixmap(originalPixmap.scaled(scrollArea->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    //} else {
     imageLabel = new QLabel("暂无图像");
-    //}
     imageLabel->setAlignment(Qt::AlignCenter);
     scrollArea = new QScrollArea;
     scrollArea->setWidgetResizable(true);
@@ -146,26 +129,27 @@ void JuliaWidget::setupUI() {
 
     connect(generateButton, &QPushButton::clicked, this, [&](){this->onGenerateButtonClicked(true);});
 
+    // 显示图像，默认显示colormap
+    if(QFile::exists("colormaps.png")){
+        originalPixmap = QPixmap("colormaps.png");
+        imageLabel->setPixmap(originalPixmap.scaled(scrollArea->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
+
     setLayout(mainLayout);
 }
 
 void JuliaWidget::onGenerateButtonClicked(bool saveImage) {
     if( // 参数改变时才重新计算矩阵
-        abs(real - realInput->text().toDouble()) > epsilon ||
-        abs(imag - imagInput->text().toDouble()) > epsilon ||
-        order != orderInput->text().toInt()  ||
+        func_str != funcInput->text().toStdString() ||
         resolution != resolutionInput->text().toInt() ||
         maxIterations != maxIterInput->text().toInt() ||
         abs(realCenter - realCenterInput->text().toDouble()) > epsilon ||
         abs(imagCenter - imagCenterInput->text().toDouble()) > epsilon ||
         abs(range - rangeInput->text().toDouble()) > epsilon
     ){
-        // 获取C的数据
-        real = realInput->text().toDouble();
-        imag = imagInput->text().toDouble();
-        order = orderInput->text().toInt();
         resolution = resolutionInput->text().toInt();
         maxIterations = maxIterInput->text().toInt();
+        func_str = funcInput->text().toStdString();
 
         //范围
         realCenter = realCenterInput->text().toDouble();
@@ -174,14 +158,24 @@ void JuliaWidget::onGenerateButtonClicked(bool saveImage) {
 
         width = resolution;
         height = resolution;
-        std::complex<double> c(real, imag);
 
-        // 计算出julia矩阵
-        JuliaMatrix = generateJuliaMatrix(
-            realCenter - range/2, realCenter + range/2, imagCenter - range/2, imagCenter + range/2,
-            width, height, order, c, maxIterations
-            );
-        //auto matrix = generateMandelbrotMatrix(width, height, n, c, maxIterations);
+        try {
+            // 如果输入格式错误，抛出异常，直接跳到 catch 块
+            auto func = getPolynomialLambda(func_str);
+
+            // 计算出julia矩阵
+            JuliaMatrix = generateJuliaMatrix(
+                realCenter - range/2, realCenter + range/2, imagCenter - range/2, imagCenter + range/2,
+                width, height, func, maxIterations
+                );
+
+        } catch (const std::exception& e) {
+            // 4. 捕获错误并弹窗
+            // e.what() 会包含我们在头文件中 throw 的错误信息
+            QMessageBox::critical(this, "多项式格式错误",
+                                  QString("无法解析输入的多项式：\n%1\n\n请检查格式，例如：(1+i)x^2 + 3x - 5").arg(e.what()));
+        }
+
     }
 
     int minIter = maxIterations; // 最小的 迭代次数
@@ -199,9 +193,7 @@ void JuliaWidget::onGenerateButtonClicked(bool saveImage) {
     if(saveImage){
         // 生成文件名
         std::ostringstream oss;
-        oss << "julia_z" << order
-                << (real < 0 ? "" : "+")  << real
-                << (imag < 0 ? "" : "+") << imag << "i_" << maxIterations << "_"
+        oss << "julia_" << func_str << "_" << maxIterations << "_"
             << resolution << "p_" << colorMapComboBox->currentText().toStdString() << "_z("
             << realCenter << "," << imagCenter <<")_"<< range
             << ".png";
