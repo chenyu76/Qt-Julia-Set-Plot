@@ -76,6 +76,9 @@ void JuliaWidget::setupUI() {
     maxIterLayout->addWidget(new QLabel("最大迭代次数:"));
     maxIterInput = new QLineEdit("200");
     maxIterLayout->addWidget(maxIterInput);
+    maxIterLayout->addWidget(new QLabel("允许迭代半径:"));
+    escapeRadiusInput = new QLineEdit("2");
+    maxIterLayout->addWidget(escapeRadiusInput);
     figCfgInputGroupLayout->addLayout(maxIterLayout);
 
 
@@ -144,6 +147,7 @@ void JuliaWidget::onGenerateButtonClicked(bool saveImage) {
         func_str != funcInput->text().toStdString() ||
         resolution != resolutionInput->text().toInt() ||
         maxIterations != maxIterInput->text().toInt() ||
+        escapeRadius != escapeRadiusInput->text().toDouble() ||
         abs(realCenter - realCenterInput->text().toDouble()) > epsilon ||
         abs(imagCenter - imagCenterInput->text().toDouble()) > epsilon ||
         abs(range - rangeInput->text().toDouble()) > epsilon
@@ -151,6 +155,7 @@ void JuliaWidget::onGenerateButtonClicked(bool saveImage) {
         resolution = resolutionInput->text().toInt();
         maxIterations = maxIterInput->text().toInt();
         func_str = funcInput->text().toStdString();
+        escapeRadius = escapeRadiusInput->text().toDouble();
 
         //范围
         realCenter = realCenterInput->text().toDouble();
@@ -169,7 +174,7 @@ void JuliaWidget::onGenerateButtonClicked(bool saveImage) {
             // 计算出julia矩阵
             JuliaMatrix = generateJuliaMatrix(
                 realCenter - range/2, realCenter + range/2, imagCenter - range/2, imagCenter + range/2,
-                width, height, func.first, maxIterations
+                width, height, func.first, maxIterations, escapeRadius
                 );
 
         } catch (const std::exception& e) {

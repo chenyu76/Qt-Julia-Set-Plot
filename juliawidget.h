@@ -52,6 +52,7 @@ private:
     int width = -1;
     int height = -1;
     int maxIterations = -1;
+    double escapeRadius = -1;
     int resolution = -1;
 
     //double real = -2; // c real
@@ -73,11 +74,9 @@ private:
     bool isDragging = false;  // 是否正在拖拽
 
     QLineEdit* funcInput;
-    QLineEdit* orderInput;
-    QLineEdit* realInput;
-    QLineEdit* imagInput;
     QLineEdit* resolutionInput;
     QLineEdit* maxIterInput;
+    QLineEdit* escapeRadiusInput;
 
     QLineEdit* realCenterInput; // 画面中心的实部
     QLineEdit* imagCenterInput;
