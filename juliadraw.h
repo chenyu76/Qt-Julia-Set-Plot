@@ -77,88 +77,44 @@ QImage getJuliaImage(const std::vector<std::vector<int>>& matrix, std::function<
 using Complex = std::complex<double>;
 // 解析单个复数
 inline Complex parseComplexCoeff(std::string s) {
-    // 1. 去除所有空格
     s.erase(std::remove_if(s.begin(), s.end(), ::isspace), s.end());
-
     if (s.empty()) return {1, 0};
 
-    // 2. 处理最前面的符号 (处理如 "-(1+i)" 或 "+(-0.7...)" 的情况)
     double signMultiplier = 1.0;
-    if (s.front() == '-') {
-        signMultiplier = -1.0;
-        s.erase(0, 1);
-    } else if (s.front() == '+') {
-        s.erase(0, 1);
-    }
+    if (s.front() == '-') { signMultiplier = -1.0; s.erase(0, 1); }
+    else if (s.front() == '+') { s.erase(0, 1); }
 
-    // 再次判空 (处理只有 "-" 或 "+" 的情况)
     if (s.empty()) return {1.0 * signMultiplier, 0};
 
-    // 3. 去除括号
-    if (s.front() == '(' && s.back() == ')') {
-        s = s.substr(1, s.length() - 2);
-    }
+    // 去括号
+    if (s.front() == '(' && s.back() == ')') s = s.substr(1, s.length() - 2);
 
-    // 4. 如果没有 'i'，说明是纯实数
+    // 无 'i' 视为纯实数
     if (s.find('i') == std::string::npos) {
-        try {
-            return {std::stod(s) * signMultiplier, 0};
-        } catch (...) {
-            return {0, 0}; // 容错
-        }
+        try { return {std::stod(s) * signMultiplier, 0}; } catch (...) { return {0,0}; }
     }
 
-    // 5. 去除末尾的 'i'
-    s.pop_back();
+    s.pop_back(); // remove 'i'
 
-    // 6. 寻找实部和虚部的分割点
-    // 我们需要从后往前找最后一个 '+' 或 '-'
-    // 注意：要小心科学计数法 (例如 1.2e-5)，不能把 e 后面的 - 当作分割符
+    // 寻找分割点
     size_t splitPos = std::string::npos;
     for (int i = static_cast<int>(s.length()) - 1; i >= 0; --i) {
         char c = s[i];
-        if (c == '+' || c == '-') {
-            // 检查是否是科学计数法 (前一个字符是 e 或 E)
-            bool isScientific = (i > 0 && (s[i-1] == 'e' || s[i-1] == 'E'));
-
-            // 如果不是科学计数法，且不是第一个字符（处理 "-5i" 这种只有虚部且带负号的情况）
-            // 这里的逻辑是：如果是 a+bi 或 a-bi，splitPos 肯定 > 0
-            // 如果是 -bi (即实部为0)，splitPos 为 0。
-            if (!isScientific) {
-                if (i == 0) {
-                    // 符号在第一位，说明只有虚部 (例如 "-0.5")
-                    // splitPos 保持 npos，让后面逻辑处理
-                } else {
-                    splitPos = i;
-                }
-                break; // 找到了，停止循环
-            }
+        // 排除科学计数法的 e- 或 E-
+        if ((c == '+' || c == '-') && !(i > 0 && (s[i-1] == 'e' || s[i-1] == 'E'))) {
+            if (i == 0) {} else { splitPos = i; }
+            break;
         }
     }
 
-    double real = 0;
-    double imag = 0;
-
+    double real = 0, imag = 0;
     try {
-        if (splitPos == std::string::npos) {
-            // 没有分割符，或者符号在第一位 -> 纯虚数
-            // s 此时只剩下数字部分 (例如 "-0.5" 或 "0.27")
-            imag = std::stod(s);
-        } else {
-            // 有分割符 -> 复数
-            // substr(0, splitPos) 是实部
-            // substr(splitPos) 是虚部 (包含符号)
-            std::string realPart = s.substr(0, splitPos);
-            std::string imagPart = s.substr(splitPos);
-
-            real = std::stod(realPart);
-            imag = std::stod(imagPart);
+        if (splitPos == std::string::npos) imag = std::stod(s);
+        else {
+            real = std::stod(s.substr(0, splitPos));
+            imag = std::stod(s.substr(splitPos));
         }
-    } catch (...) {
-        // 解析失败容错
-        //return {0, 0};
-        throw std::invalid_argument("解析系数失败: '" + s + "' 不是有效的复数格式。");
-    }
+    } catch (...) { throw std::invalid_argument("解析复数失败"); }
 
     return {real * signMultiplier, imag * signMultiplier};
 };
@@ -172,45 +128,101 @@ inline Complex parseComplexCoeff(std::string s) {
  * 优化策略:
  * 1. 预解析为系数向量，Lambda 内部无字符串操作。
  * 2. Lambda 内部使用霍纳法则 (Horner's Method)。
+ *
+ * 返回一个pair(lambda, str)
+ * 一个可执行的函数和这个函数的字符串表示
  */
-inline auto getPolynomialLambda(const std::string& input) {
+inline std::pair<std::function<std::complex<double>(std::complex<double>)>, std::string>
+getPolynomialLambda(const std::string& input) {
+    using Complex = std::complex<double>;
 
-
-    // --- 2. 解析逻辑 ---
     std::vector<std::pair<int, Complex>> terms;
     int maxExp = 0;
-    // 正则表达式
-    std::regex termRegex(R"(([+-]?\s*(?:\([^\)]+\)|[\d\.]+)?)?\s*(x)?(?:\^(\d+))?)");
+
+    std::regex termRegex(R"(([+-]?\s*(?:\([^\)]+\)|[\d\.]+)?)\s*(z)?(?:\^(\d+))?)");
+
     auto begin = std::sregex_iterator(input.begin(), input.end(), termRegex);
     auto end = std::sregex_iterator();
 
     for (std::sregex_iterator i = begin; i != end; ++i) {
         std::smatch match = *i;
         std::string fullMatch = match.str();
-        bool isWhitespace = std::all_of(fullMatch.begin(), fullMatch.end(), ::isspace);
-        if (fullMatch.empty() || isWhitespace) continue;
+
+        // 基础空白检查
+        if (fullMatch.empty() || std::all_of(fullMatch.begin(), fullMatch.end(), ::isspace)) continue;
 
         std::string coeffStr = match[1].str();
         bool hasX = match[2].matched;
         std::string expStr = match[3].str();
 
+        // 修复逻辑：解决 "x^2 + -x" 中间的 "+" 被识别为常数 1 的问题。
+        // 如果这一项没有 x (看起来像常数)，但系数部分其实不包含任何有效数字内容
+        // (没有数字、小数点、i、右括号)，说明它只是一个被正则孤立出来的连接符。
+        if (!hasX) {
+            bool hasEffectiveContent = false;
+            for (char c : coeffStr) {
+                // 只要包含数字、小数点、虚数单位i、或者右括号(表示复数结束)，就是有效常数
+                if (isdigit(c) || c == '.' || c == 'i' || c == ')') {
+                    hasEffectiveContent = true;
+                    break;
+                }
+            }
+            // 如果只有 + / - 或空格，跳过该匹配
+            if (!hasEffectiveContent) continue;
+        }
+
         Complex coeff = parseComplexCoeff(coeffStr);
         int exponent = 0;
-        if (hasX) exponent = expStr.empty() ? 1 : std::stoi(expStr);
+
+        if (hasX) {
+            exponent = expStr.empty() ? 1 : std::stoi(expStr);
+        }
 
         if (exponent > maxExp) maxExp = exponent;
         terms.push_back({exponent, coeff});
     }
 
+    if (terms.empty()) throw std::invalid_argument("未检测到有效的多项式项");
+
     std::vector<Complex> coeffs(maxExp + 1, {0, 0});
     for (const auto& term : terms) coeffs[term.first] += term.second;
 
-    if (terms.empty()) {
-        throw std::invalid_argument("输入为空或无法识别任何多项式项。");
-    }
+    // 3. 构建显示字符串 (保持不变)
+    std::stringstream ss;
+    bool isFirst = true;
+    for (int i = static_cast<int>(coeffs.size()) - 1; i >= 0; --i) {
+        Complex c = coeffs[i];
+        if (std::abs(c.real()) < 1e-10 && std::abs(c.imag()) < 1e-10) {
+            if (i == 0 && isFirst) ss << "0";
+            continue;
+        }
 
-    // --- 3. 返回 Lambda ---
-    return [coeffs](Complex z) -> Complex {
+        if (!isFirst) ss << " + ";
+
+        std::string coeffStr;
+        if (std::abs(c.imag()) < 1e-10) {
+            if (i > 0 && std::abs(c.real() - 1.0) < 1e-10) coeffStr = "";
+            else if (i > 0 && std::abs(c.real() + 1.0) < 1e-10) coeffStr = "-";
+            else { std::stringstream temp; temp << c.real(); coeffStr = temp.str(); }
+        } else if (std::abs(c.real()) < 1e-10) {
+            std::stringstream temp;
+            if (std::abs(c.imag() - 1.0) < 1e-10) temp << "i";
+            else if (std::abs(c.imag() + 1.0) < 1e-10) temp << "-i";
+            else temp << c.imag() << "i";
+            coeffStr = temp.str();
+        } else {
+            std::stringstream temp; temp << "(" << c.real() << (c.imag()>=0?"+":"") << c.imag() << "i)";
+            coeffStr = temp.str();
+        }
+        ss << coeffStr;
+        if (i > 0) { ss << "z"; if (i > 1) ss << "^" << i; }
+        isFirst = false;
+    }
+    // 将 + -x 替换为-x
+    auto ss_str = std::regex_replace(ss.str(), std::regex("\\+ \\-"), "- ");
+
+    // 4. 返回 Lambda
+    auto lambda = [coeffs](Complex z) -> Complex {
         if (coeffs.empty()) return {0,0};
         Complex result = coeffs.back();
         for (int i = static_cast<int>(coeffs.size()) - 2; i >= 0; --i) {
@@ -218,6 +230,7 @@ inline auto getPolynomialLambda(const std::string& input) {
         }
         return result;
     };
-}
 
+    return {lambda, ss_str};
+}
 #endif // JULIADRAW_H

@@ -12,6 +12,7 @@
 #include <colormap.h>
 #include <QShortcut>
 #include <QFile>
+#include <algorithm>
 
 JuliaWidget::JuliaWidget(QWidget* parent)
     : QWidget(parent), width(400), height(800), maxIterations(1000) {
@@ -162,11 +163,13 @@ void JuliaWidget::onGenerateButtonClicked(bool saveImage) {
         try {
             // 如果输入格式错误，抛出异常，直接跳到 catch 块
             auto func = getPolynomialLambda(func_str);
+            func_str = func.second;
+            funcInput->setText(func.second.c_str());
 
             // 计算出julia矩阵
             JuliaMatrix = generateJuliaMatrix(
                 realCenter - range/2, realCenter + range/2, imagCenter - range/2, imagCenter + range/2,
-                width, height, func, maxIterations
+                width, height, func.first, maxIterations
                 );
 
         } catch (const std::exception& e) {
@@ -193,7 +196,8 @@ void JuliaWidget::onGenerateButtonClicked(bool saveImage) {
     if(saveImage){
         // 生成文件名
         std::ostringstream oss;
-        oss << "julia_" << func_str << "_" << maxIterations << "_"
+        oss << "julia_" << std::regex_replace(func_str, std::regex("[ \\^]"), "")
+            << "_" << maxIterations << "_"
             << resolution << "p_" << colorMapComboBox->currentText().toStdString() << "_z("
             << realCenter << "," << imagCenter <<")_"<< range
             << ".png";

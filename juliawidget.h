@@ -57,7 +57,7 @@ private:
     //double real = -2; // c real
     //double imag = -2; // c imag
     //double order = -2;// z^order
-    std::string func_str = "x^2+(-0.7+0.27015i)";
+    std::string func_str = "z^2+(-0.7+0.27015i)";
 
     std::vector<std::vector<int>> JuliaMatrix;
 
