@@ -233,4 +233,53 @@ getPolynomialLambda(const std::string& input) {
 
     return {lambda, ss_str};
 }
+
+
+// 调用getPolynomialLambda解析一个有理函数
+inline std::pair<std::function<std::complex<double>(std::complex<double>)>, std::string>
+getRationalFunctionLambda(const std::string& input) {
+    if (input.find('/') != std::string::npos) {
+        std::regex pattern(R"((.*)/(.*))");
+        std::smatch matches;
+        std::regex_match(input, matches, pattern);
+
+        std::string P_str = matches[1].str();
+        std::string Q_str = matches[2].str();
+
+        // 去除字符串两端的空格
+        P_str = std::regex_replace(P_str, std::regex(R"(^\s+|\s+$)"), "");
+        Q_str = std::regex_replace(Q_str, std::regex(R"(^\s+|\s+$)"), "");
+
+        // 去除左右两端的括号
+        std::regex bracketPattern(R"(^\((.*)\)$)");
+        std::smatch bracketMatches;
+
+        if (std::regex_match(P_str, bracketMatches, bracketPattern) && bracketMatches.size() == 2) {
+            P_str = bracketMatches[1].str();
+        }
+
+        if (std::regex_match(Q_str, bracketMatches, bracketPattern) && bracketMatches.size() == 2) {
+            Q_str = bracketMatches[1].str();
+        }
+
+        auto P = getPolynomialLambda(P_str);
+        auto Q = getPolynomialLambda(Q_str);
+
+        auto f_str = "(" + P.second + ") / (" + Q.second + ")";
+        auto lambda = [P, Q](Complex z) -> Complex {
+            auto de = Q.first(z);
+            if (std::norm(de) < 0.000001)
+                return std::complex(10000000.0, 0.0);
+            return P.first(z) / de;
+        };
+
+        return {lambda, f_str};
+    }
+    else{
+        // 如果没有 / fallback回普通多项式
+        return getPolynomialLambda(input);
+    }
+}
+
+
 #endif // JULIADRAW_H

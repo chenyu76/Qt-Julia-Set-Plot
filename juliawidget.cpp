@@ -68,7 +68,7 @@ void JuliaWidget::setupUI() {
     // 分辨率设置
     QHBoxLayout* resolutionInputLayout = new QHBoxLayout;
     resolutionInputLayout->addWidget(new QLabel("图像分辨率(px):"));
-    resolutionInput = new QLineEdit("540");
+    resolutionInput = new QLineEdit("360");
     resolutionInputLayout->addWidget(resolutionInput);
     figCfgInputGroupLayout->addLayout(resolutionInputLayout);
 
@@ -116,7 +116,7 @@ void JuliaWidget::setupUI() {
     // 显示图像名称
     displayLabel = new QLabel(
         "点击上面按钮生成图像，图像需要一段时间生成，程序可能会无响应，请耐心等待。\n"
-        "注意：请保证输入的只包含完全展开的多项式，本程序无法处理其它复杂格式。\n"
+        "注意：请保证输入的只包含完全展开的多项式或有理函数，本程序无法处理其它复杂格式。\n"
         "提示：光标不在输入框内时，你可以通过H/J/K/L移动图像范围，-/= 缩放图像；\n"
         "Ctrl+S保存图像，Ctrl+D生成图像（但不保存）；\n"
         "下图为不同颜色映射函数的样式参考。");
@@ -167,7 +167,7 @@ void JuliaWidget::onGenerateButtonClicked(bool saveImage) {
 
         try {
             // 如果输入格式错误，抛出异常，直接跳到 catch 块
-            auto func = getPolynomialLambda(func_str);
+            auto func = getRationalFunctionLambda(func_str);
             func_str = func.second;
             funcInput->setText(func.second.c_str());
 
@@ -201,7 +201,8 @@ void JuliaWidget::onGenerateButtonClicked(bool saveImage) {
     if(saveImage){
         // 生成文件名
         std::ostringstream oss;
-        oss << "julia_" << std::regex_replace(func_str, std::regex("[ \\^]"), "")
+        auto f_name = std::regex_replace(std::regex_replace(func_str, std::regex("[ \\^]"), ""), std::regex("/"), "div");
+        oss << "julia_" << f_name
             << "_" << maxIterations << "_"
             << resolution << "p_" << colorMapComboBox->currentText().toStdString() << "_z("
             << realCenter << "," << imagCenter <<")_"<< range
